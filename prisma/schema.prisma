@@ -12,10 +12,25 @@ datasource db {
 }
 
 model Post {
-    id        Int      @id @default(autoincrement())
-    name      String
+    id        String   @id @default(cuid())
+    content   String
     createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    score     Int      @default(1)
+    username  String
+    image     String
+    replies   Reply[]
 
-    @@index([name])
+    @@index([username])
+}
+
+model Reply {
+    id         String   @id @default(cuid())
+    content    String
+    postId     String
+    replyingTo String
+    createdAt  DateTime @default(now())
+    score      Int      @default(1)
+    username   String
+    image      String
+    post       Post     @relation(fields: [postId], references: [id])
 }

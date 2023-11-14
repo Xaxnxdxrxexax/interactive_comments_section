@@ -1,5 +1,11 @@
 import Link from "next/link";
-import { SignInButton, SignOutButton, UserButton, auth } from "@clerk/nextjs";
+import {
+  SignInButton,
+  SignOutButton,
+  UserButton,
+  auth,
+  useUser,
+} from "@clerk/nextjs";
 
 import { api } from "~/trpc/server";
 import Image from "next/image";
@@ -14,6 +20,7 @@ dayjs.extend(relativeTime);
 
 export default async function Home() {
   const user = await currentUser();
+
   const allPosts = await api.post.getAll.query();
 
   return (

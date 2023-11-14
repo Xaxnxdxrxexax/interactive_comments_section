@@ -16,8 +16,8 @@ import { db } from "~/server/db";
 
 import {
   getAuth,
-  SignedInAuthObject,
-  SignedOutAuthObject,
+  type SignedInAuthObject,
+  type SignedOutAuthObject,
 } from "@clerk/nextjs/server";
 
 interface AuthContext {
@@ -58,9 +58,8 @@ export const createInnerTRPCContext = ({ auth }: AuthContext) => {
  *
  * @see https://trpc.io/docs/context
  */
-export const createTRPCContext = (opts: trpcNext.CreateNextContextOptions) => {
+export const createTRPCContext = (opts: { req: NextRequest }) => {
   // Fetch stuff that depends on the request
-
   return createInnerTRPCContext({
     auth: getAuth(opts.req),
   });
@@ -74,7 +73,7 @@ export const createTRPCContext = (opts: trpcNext.CreateNextContextOptions) => {
  * errors on the backend.
  */
 
-const t = trpc.initTRPC.context<typeof createTRPCContext>().create({
+const t = trpc.initTRPC.context<Context>().create({
   transformer: superjson,
   errorFormatter({ shape, error }) {
     return {
@@ -102,13 +101,14 @@ const t = trpc.initTRPC.context<typeof createTRPCContext>().create({
  */
 export const createTRPCRouter = t.router;
 
-const isAuthed = t.middleware(async ({ ctx, next }) => {
+const isAuthed = t.middleware(({ ctx, next }) => {
   if (!ctx.auth.userId) {
     throw new trpc.TRPCError({ code: "UNAUTHORIZED" });
   }
   return next({
     ctx: {
       auth: ctx.auth,
+      db: ctx.db,
     },
   });
 });

@@ -6,13 +6,23 @@
  * TL;DR - This is where all the tRPC server stuff is created and plugged in. The pieces you will
  * need to use are documented accordingly near the end.
  */
-import { initTRPC } from "@trpc/server";
+import * as trpc from "@trpc/server";
+import * as trpcNext from "@trpc/server/adapters/next";
 import { type NextRequest } from "next/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
 import { db } from "~/server/db";
 
+import {
+  getAuth,
+  SignedInAuthObject,
+  SignedOutAuthObject,
+} from "@clerk/nextjs/server";
+
+interface AuthContext {
+  auth: SignedInAuthObject | SignedOutAuthObject;
+}
 /**
  * 1. CONTEXT
  *
@@ -21,9 +31,9 @@ import { db } from "~/server/db";
  * These allow you to access things when processing a request, like the database, the session, etc.
  */
 
-interface CreateContextOptions {
-  headers: Headers;
-}
+// interface CreateContextOptions {
+//   headers: Headers;
+// }
 
 /**
  * This helper generates the "internals" for a tRPC context. If you need to use it, you can export
@@ -35,9 +45,9 @@ interface CreateContextOptions {
  *
  * @see https://create.t3.gg/en/usage/trpc#-serverapitrpcts
  */
-export const createInnerTRPCContext = (opts: CreateContextOptions) => {
+export const createInnerTRPCContext = ({ auth }: AuthContext) => {
   return {
-    headers: opts.headers,
+    auth,
     db,
   };
 };
@@ -48,11 +58,11 @@ export const createInnerTRPCContext = (opts: CreateContextOptions) => {
  *
  * @see https://trpc.io/docs/context
  */
-export const createTRPCContext = (opts: { req: NextRequest }) => {
+export const createTRPCContext = (opts: trpcNext.CreateNextContextOptions) => {
   // Fetch stuff that depends on the request
 
   return createInnerTRPCContext({
-    headers: opts.req.headers,
+    auth: getAuth(opts.req),
   });
 };
 
@@ -64,7 +74,7 @@ export const createTRPCContext = (opts: { req: NextRequest }) => {
  * errors on the backend.
  */
 
-const t = initTRPC.context<typeof createTRPCContext>().create({
+const t = trpc.initTRPC.context<typeof createTRPCContext>().create({
   transformer: superjson,
   errorFormatter({ shape, error }) {
     return {
@@ -92,6 +102,17 @@ const t = initTRPC.context<typeof createTRPCContext>().create({
  */
 export const createTRPCRouter = t.router;
 
+const isAuthed = t.middleware(async ({ ctx, next }) => {
+  if (!ctx.auth.userId) {
+    throw new trpc.TRPCError({ code: "UNAUTHORIZED" });
+  }
+  return next({
+    ctx: {
+      auth: ctx.auth,
+    },
+  });
+});
+
 /**
  * Public (unauthenticated) procedure
  *
@@ -99,4 +120,7 @@ export const createTRPCRouter = t.router;
  * guarantee that a user querying is authorized, but you can still access user session data if they
  * are logged in.
  */
+
+export type Context = trpc.inferAsyncReturnType<typeof createTRPCContext>;
 export const publicProcedure = t.procedure;
+export const protectedProcedure = t.procedure.use(isAuthed);

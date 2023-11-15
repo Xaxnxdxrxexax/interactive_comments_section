@@ -16,8 +16,8 @@ import { db } from "~/server/db";
 
 import {
   getAuth,
-  type SignedInAuthObject,
-  type SignedOutAuthObject,
+  SignedInAuthObject,
+  SignedOutAuthObject,
 } from "@clerk/nextjs/server";
 
 interface AuthContext {
@@ -101,14 +101,15 @@ const t = trpc.initTRPC.context<Context>().create({
  */
 export const createTRPCRouter = t.router;
 
-const isAuthed = t.middleware(({ ctx, next }) => {
+const isAuthed = t.middleware(async ({ ctx, next }) => {
   if (!ctx.auth.userId) {
-    throw new trpc.TRPCError({ code: "UNAUTHORIZED" });
+    throw new trpc.TRPCError({
+      code: "UNAUTHORIZED",
+    });
   }
   return next({
     ctx: {
       auth: ctx.auth,
-      db: ctx.db,
     },
   });
 });
@@ -123,4 +124,4 @@ const isAuthed = t.middleware(({ ctx, next }) => {
 
 export type Context = trpc.inferAsyncReturnType<typeof createTRPCContext>;
 export const publicProcedure = t.procedure;
-export const protectedProcedure = t.procedure.use(isAuthed);
+export const privateProcedure = t.procedure.use(isAuthed);

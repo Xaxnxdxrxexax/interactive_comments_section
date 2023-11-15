@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   SignInButton,
   SignOutButton,
@@ -14,20 +13,23 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "~/server/api/root";
 import { type User, currentUser } from "@clerk/nextjs/server";
+import clsx from "clsx";
+import CreatePost from "./_components/CreatePost";
 type RouterOutput = inferRouterOutputs<AppRouter>;
 
 dayjs.extend(relativeTime);
 
 export default async function Home() {
   const user = await currentUser();
-
   const allPosts = await api.post.getAll.query();
 
+  if (!allPosts) return <div>Loading</div>;
+
   return (
-    <main className="bg-Fm-Light-grayish-blue space-y-5 px-4 py-8">
+    <main className="space-y-5 bg-Fm-Light-grayish-blue px-4 py-8">
       {user?.id ? <SignOutButton /> : <SignInButton />}
       {user?.id && <UserButton />}
-      {user?.id && <CreatePostWizard user={user} />}
+      {user?.id && <CreatePost />}
       {allPosts.map((post) => {
         return <Post key={post.id} post={post} />;
       })}
@@ -35,9 +37,11 @@ export default async function Home() {
   );
 }
 
-type Post = RouterOutput["post"]["getAll"][number];
+type PostType = RouterOutput["post"]["getAll"][number];
 
-function Post({ post }: { post: Post }) {
+async function Post({ post }: { post: PostType }) {
+  const user = await currentUser();
+
   return (
     <div key={post.id} className="relative p-4">
       <div className="relative bg-Fm-White">
@@ -60,39 +64,35 @@ function Post({ post }: { post: Post }) {
             <p>{post.score}</p>
             <p>-</p>
           </div>
-          <button className="flex">
+          <button
+            className={clsx(
+              "flex",
+              !user && "bg-Fm-Light-gray text-Fm-Dark-blue",
+            )}
+            disabled={!user}
+          >
             <Image
               src="/images/icon-reply.svg"
               alt="reply"
               width={20}
               height={20}
             />
-            Reply
+            {!user ? "Sign in" : "Reply"}
           </button>
         </div>
-        {/* The reply component */}
       </div>
       <div className="ml-4 mt-4 flex flex-col gap-4 border-l border-black bg-transparent pl-4">
         {post.replies.map((reply) => {
           return <Reply key={reply.id} reply={reply} />;
         })}
       </div>
-      <div className="flex flex-col">
-        <textarea className="flex-grow border" placeholder="Add a comment" />
-        <div className="flex items-center justify-around">
-          <div className="relative h-12 w-12">
-            <Image src={post.image} alt={`${post.username}'s picture`} fill />
-          </div>
-          <button className="rounded-lg bg-Fm-Moderate-blue p-4 text-Fm-Very-light-gray">
-            SEND
-          </button>
-        </div>
-      </div>
+      {/* The reply component */}
     </div>
   );
 }
 
-function Reply({ reply }: { reply: Post["replies"][number] }) {
+async function Reply({ reply }: { reply: PostType["replies"][number] }) {
+  const user = await currentUser();
   return (
     <div key={reply.id} className="relative bg-Fm-White p-4">
       <div className="flex gap-4">
@@ -113,28 +113,18 @@ function Reply({ reply }: { reply: Post["replies"][number] }) {
         <p>{reply.score}</p>
         <p>-</p>
       </div>
-      <button className="absolute bottom-4 right-4 flex">
+      <button
+        className={clsx("flex", !user && "bg-Fm-Light-gray text-Fm-Dark-blue")}
+        disabled={!user}
+      >
         <Image
           src="/images/icon-reply.svg"
           alt="reply"
           width={20}
           height={20}
         />
-        Reply
+        {!user ? "Sign in" : "Reply"}
       </button>
-    </div>
-  );
-}
-
-function CreatePostWizard({ user }: { user: User }) {
-  return (
-    <div className="border border-black">
-      <Image
-        src={user.imageUrl}
-        alt={`${user.username}'s picture`}
-        width={20}
-        height={20}
-      />
     </div>
   );
 }

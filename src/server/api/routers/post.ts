@@ -46,4 +46,29 @@ export const postRouter = createTRPCRouter({
       });
       return post;
     }),
+  reply: privateProcedure
+    .input(
+      z.object({
+        postId: z.string(),
+        replyingTo: z.string(),
+        content: z.string().min(5).max(300),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const user = await currentUser();
+      if (!ctx.auth.userId && !user)
+        throw new TRPCError({ code: "UNAUTHORIZED" });
+      const username = user?.username;
+      const image = user?.imageUrl;
+      const reply = await ctx.db.reply.create({
+        data: {
+          content: input.content,
+          postId: input.postId,
+          replyingTo: input.replyingTo,
+          username: username!,
+          image: image!,
+        },
+      });
+      return reply;
+    }),
 });

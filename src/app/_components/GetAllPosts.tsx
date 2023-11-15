@@ -15,6 +15,8 @@ import clsx from "clsx";
 
 import { api } from "~/trpc/react";
 import CreatePost from "./CreatePost";
+import { useState } from "react";
+import CreateReply from "./CreateReply";
 type RouterOutput = inferRouterOutputs<AppRouter>;
 
 dayjs.extend(relativeTime);
@@ -42,6 +44,7 @@ type PostType = RouterOutput["post"]["getAll"][number];
 
 function Post({ post }: { post: PostType }) {
   const { isSignedIn } = useUser();
+  const [isReplyOpen, setIsReplyOpen] = useState(false);
   return (
     <div key={post.id} className="relative p-4">
       <div className="relative bg-Fm-White">
@@ -70,6 +73,7 @@ function Post({ post }: { post: PostType }) {
               !isSignedIn && "bg-Fm-Light-gray text-Fm-Dark-blue",
             )}
             disabled={!isSignedIn}
+            onClick={() => setIsReplyOpen(!isReplyOpen)}
           >
             <Image
               src="/images/icon-reply.svg"
@@ -79,6 +83,9 @@ function Post({ post }: { post: PostType }) {
             />
             {!isSignedIn ? "Sign in" : "Reply"}
           </button>
+          {isSignedIn && isReplyOpen && (
+            <CreateReply postIdProp={post.id} replyingToProp={post.username} />
+          )}
         </div>
       </div>
       <div className="ml-4 mt-4 flex flex-col gap-4 border-l border-black bg-transparent pl-4">
@@ -93,7 +100,7 @@ function Post({ post }: { post: PostType }) {
 
 function Reply({ reply }: { reply: PostType["replies"][number] }) {
   const { isSignedIn } = useUser();
-
+  const [isReplyOpen, setIsReplyOpen] = useState(false);
   return (
     <div key={reply.id} className="relative bg-Fm-White p-4">
       <div className="flex gap-4">
@@ -108,7 +115,10 @@ function Reply({ reply }: { reply: PostType["replies"][number] }) {
         <p>{reply.username}</p>
         <p>{dayjs(reply.createdAt).fromNow()}</p>
       </div>
-      <p>{reply.content}</p>
+      <p>
+        <span className="pr-2 font-bold">@{reply.replyingTo}</span>
+        {reply.content}
+      </p>
       <div className="flex">
         <p>+</p>
         <p>{reply.score}</p>
@@ -120,6 +130,7 @@ function Reply({ reply }: { reply: PostType["replies"][number] }) {
           !isSignedIn && "bg-Fm-Light-gray text-Fm-Dark-blue",
         )}
         disabled={!isSignedIn}
+        onClick={() => setIsReplyOpen(!isReplyOpen)}
       >
         <Image
           src="/images/icon-reply.svg"
@@ -129,6 +140,12 @@ function Reply({ reply }: { reply: PostType["replies"][number] }) {
         />
         {!isSignedIn ? "Sign in" : "Reply"}
       </button>
+      {isSignedIn && isReplyOpen && (
+        <CreateReply
+          postIdProp={reply.postId}
+          replyingToProp={reply.username}
+        />
+      )}
     </div>
   );
 }

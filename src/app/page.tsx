@@ -29,7 +29,7 @@ export default async function Home() {
     <main className="space-y-5 bg-Fm-Light-grayish-blue px-4 py-8">
       {user?.id ? <SignOutButton /> : <SignInButton />}
       {user?.id && <UserButton />}
-      {user?.id && <CreatePost />}
+      {/* {user?.id && <CreatePost />} */}
       {allPosts.map((post) => {
         return <Post key={post.id} post={post} />;
       })}

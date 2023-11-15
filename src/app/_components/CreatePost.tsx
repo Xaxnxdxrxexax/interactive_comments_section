@@ -18,8 +18,14 @@ import { api } from "~/trpc/react";
 // import clsx from "clsx";
 // type RouterOutput = inferRouterOutputs<AppRouter>;
 export default function CreatePost() {
-  const { register, handleSubmit } = useForm<{ content: string }>();
-  const { mutate } = api.post.create.useMutation();
+  const { register, handleSubmit, resetField } = useForm<{ content: string }>();
+  const ctx = api.useUtils();
+  const { mutate, isLoading: isPosting } = api.post.create.useMutation({
+    onSuccess: () => {
+      resetField("content");
+      void ctx.post.getAll.invalidate();
+    },
+  });
 
   const onSubmit: SubmitHandler<{ content: string }> = (data) => {
     mutate(data);
@@ -44,6 +50,7 @@ export default function CreatePost() {
         </div>
         <button
           type="submit"
+          disabled={isPosting}
           className="rounded-lg bg-Fm-Moderate-blue p-4 text-Fm-Very-light-gray"
         >
           SEND

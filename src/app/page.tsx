@@ -6,7 +6,6 @@ import {
   useUser,
 } from "@clerk/nextjs";
 
-import { api } from "~/trpc/server";
 import Image from "next/image";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -15,21 +14,21 @@ import type { AppRouter } from "~/server/api/root";
 import { type User, currentUser } from "@clerk/nextjs/server";
 import clsx from "clsx";
 import CreatePost from "./_components/CreatePost";
+import { api } from "~/trpc/server";
 type RouterOutput = inferRouterOutputs<AppRouter>;
 
 dayjs.extend(relativeTime);
 
 export default async function Home() {
   const user = await currentUser();
+
   const allPosts = await api.post.getAll.query();
 
-  if (!allPosts) return <div>Loading</div>;
-
   return (
-    <main className="space-y-5 bg-Fm-Light-grayish-blue px-4 py-8">
+    <main className="bg-Fm-Light-asyncgrayish-blue space-y-5 px-4 py-8">
       {user?.id ? <SignOutButton /> : <SignInButton />}
       {user?.id && <UserButton />}
-      {/* {user?.id && <CreatePost />} */}
+      {user?.id && <CreatePost />}
       {allPosts.map((post) => {
         return <Post key={post.id} post={post} />;
       })}

@@ -1,5 +1,6 @@
 "use client";
 import { type SubmitHandler, useForm } from "react-hook-form";
+import { api } from "~/trpc/react";
 // import {
 //   SignInButton,
 //   SignOutButton,
@@ -8,7 +9,6 @@ import { type SubmitHandler, useForm } from "react-hook-form";
 //   useUser,
 // } from "@clerk/nextjs";
 
-import { api } from "~/trpc/server";
 // import Image from "next/image";
 // import dayjs from "dayjs";
 // import relativeTime from "dayjs/plugin/relativeTime";
@@ -19,11 +19,10 @@ import { api } from "~/trpc/server";
 // type RouterOutput = inferRouterOutputs<AppRouter>;
 export default function CreatePost() {
   const { register, handleSubmit } = useForm<{ content: string }>();
+  const { mutate } = api.post.create.useMutation();
 
-  const onSubmit: SubmitHandler<{ content: string }> = async (data) => {
-    return await api.post.create.mutate({
-      content: data.content,
-    });
+  const onSubmit: SubmitHandler<{ content: string }> = (data) => {
+    mutate(data);
   };
 
   return (

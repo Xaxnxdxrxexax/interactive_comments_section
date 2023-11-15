@@ -27,15 +27,15 @@ export function TRPCReactProvider(props: {
         }),
         unstable_httpBatchStreamLink({
           url: getUrl(),
-          headers() {
-            return {
-              cookie: props.cookies,
-              "x-trpc-source": "react",
-            };
-          },
+          // headers() {
+          //   return {
+          //     cookie: props.cookies,
+          //     "x-trpc-source": "react",
+          //   };
+          // },
         }),
       ],
-    })
+    }),
   );
 
   return (

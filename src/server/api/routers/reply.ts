@@ -74,4 +74,71 @@ export const replyRouter = createTRPCRouter({
         });
       }
     }),
+  editReply: privateProcedure
+    .input(
+      z.object({
+        postId: z.string(),
+        content: z
+          .string()
+          .min(5, { message: "Content is too short" })
+          .max(300, { message: "Content is too long" }),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const user = await currentUser();
+      if (!ctx.auth.userId && !user)
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Unauthorized" });
+      const post = await ctx.db.reply.findUnique({
+        where: {
+          id: input.postId,
+        },
+      });
+      if (!post)
+        throw new TRPCError({ code: "NOT_FOUND", message: "Reply not found" });
+      if (post.username !== user?.username)
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You are not authorized to edit this reply",
+        });
+      await ctx.db.reply.update({
+        where: {
+          id: input.postId,
+        },
+        data: {
+          content: input.content,
+        },
+      });
+      return { message: "Reply updated" };
+    }),
+  deleteReply: privateProcedure
+    .input(
+      z.object({
+        postId: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const user = await currentUser();
+      if (!ctx.auth.userId && !user)
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Unauthorized" });
+      const reply = await ctx.db.reply.findUnique({
+        where: {
+          id: input.postId,
+        },
+      });
+      //check if post exists and is owned by user
+      if (!reply)
+        throw new TRPCError({ code: "NOT_FOUND", message: "reply not found" });
+      if (reply.username !== user?.username)
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You are not authorized to delete this reply",
+        });
+      //delete reply
+      await ctx.db.reply.delete({
+        where: {
+          id: input.postId,
+        },
+      });
+      return { message: "Reply deleted" };
+    }),
 });

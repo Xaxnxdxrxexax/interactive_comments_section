@@ -18,6 +18,8 @@ import CreatePost from "./CreatePost";
 import { useState } from "react";
 import CreateReply from "./CreateReply";
 import toast from "react-hot-toast";
+import EditPost from "./EditPost";
+import EditReply from "./EditReply";
 type RouterOutput = inferRouterOutputs<AppRouter>;
 
 dayjs.extend(relativeTime);
@@ -45,9 +47,20 @@ type PostType = RouterOutput["post"]["getAll"][number];
 
 function Post({ post }: { post: PostType }) {
   const ctx = api.useUtils();
+  const { user } = useUser();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const { mutate, isLoading: isVoting } = api.post.votePost.useMutation({
     onSuccess: () => {
       void ctx.post.getAll.invalidate();
+    },
+    onError: (e) => {
+      toast.error(e.message);
+    },
+  });
+  const { mutate: deletePost } = api.post.deletePost.useMutation({
+    onSuccess: (e) => {
+      void ctx.post.getAll.invalidate();
+      toast.success(e.message);
     },
     onError: (e) => {
       toast.error(e.message);
@@ -59,6 +72,7 @@ function Post({ post }: { post: PostType }) {
   }
   const { isSignedIn } = useUser();
   const [isReplyOpen, setIsReplyOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   return (
     <div key={post.id} className="relative p-4">
       <div className="relative bg-Fm-White">
@@ -73,8 +87,66 @@ function Post({ post }: { post: PostType }) {
           </div>
           <p>{post.username}</p>
           <p>{dayjs(post.createdAt).fromNow()}</p>
+          <button
+            className="rounded-lg bg-Fm-Moderate-blue p-3 text-white"
+            onClick={() => {
+              if (!isSignedIn) {
+                return toast.error("Sign in to reply");
+              }
+              if (post.username === user?.username) {
+                setIsEditOpen(true);
+              } else {
+                toast.error("You can only edit your own posts");
+              }
+            }}
+          >
+            EDIT
+          </button>
+          <button
+            className="rounded-lg bg-Fm-Soft-Red p-3 text-white"
+            onClick={() => {
+              if (!isSignedIn) {
+                return toast.error("Sign in to delete");
+              }
+              if (post.username !== user?.username) {
+                return toast.error("You can only delete your own posts");
+              }
+              setShowDeleteModal(true);
+            }}
+          >
+            DELETE
+          </button>
+          {showDeleteModal && (
+            <div className="fixed left-0 top-0 grid h-screen w-screen grid-cols-1 place-items-center justify-center bg-Fm-Grayish-Blue/80">
+              <div className="h-[200px] w-[200px] rounded-lg bg-Fm-Very-light-gray text-Fm-Dark-blue">
+                <p>Are you sure?</p>
+                <div className="flex items-center justify-around">
+                  <button
+                    className="rounded-lg bg-Fm-Soft-Red"
+                    onClick={() => deletePost({ postId: post.id })}
+                  >
+                    YES
+                  </button>
+                  <button
+                    className="rounded-lg bg-Fm-Moderate-blue"
+                    onClick={() => setShowDeleteModal(false)}
+                  >
+                    NO
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-        <p>{post.content}</p>
+        {isEditOpen ? (
+          <EditPost
+            postId={post.id}
+            content={post.content}
+            setIsEditOpen={setIsEditOpen}
+          />
+        ) : (
+          <p>{post.content}</p>
+        )}
         <div className="flex items-center justify-around">
           <div className="flex">
             <button
@@ -108,7 +180,11 @@ function Post({ post }: { post: PostType }) {
             {!isSignedIn ? "Sign in" : "Reply"}
           </button>
           {isSignedIn && isReplyOpen && (
-            <CreateReply postIdProp={post.id} replyingToProp={post.username} />
+            <CreateReply
+              postIdProp={post.id}
+              replyingToProp={post.username}
+              setIsReplyingOpen={setIsReplyOpen}
+            />
           )}
         </div>
       </div>
@@ -123,12 +199,25 @@ function Post({ post }: { post: PostType }) {
 }
 
 function Reply({ reply }: { reply: PostType["replies"][number] }) {
-  const { isSignedIn } = useUser();
+  const { isSignedIn, user } = useUser();
   const [isReplyOpen, setIsReplyOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const ctx = api.useUtils();
   const { mutate, isLoading } = api.reply.voteReply.useMutation({
     onSuccess: () => {
       void ctx.post.getAll.invalidate();
+    },
+    onError: (e) => {
+      toast.error(e.message);
+    },
+  });
+  const { mutate: deleteReply } = api.reply.deleteReply.useMutation({
+    onSuccess: () => {
+      void ctx.post.getAll.invalidate();
+      toast.success("Reply deleted");
+    },
+    onError: (e) => {
+      toast.error(e.message);
     },
   });
   function handleVote(postId: string, vote: "1" | "-1") {
@@ -147,11 +236,41 @@ function Reply({ reply }: { reply: PostType["replies"][number] }) {
         </div>
         <p>{reply.username}</p>
         <p>{dayjs(reply.createdAt).fromNow()}</p>
+        <button
+          className="rounded-lg bg-Fm-Moderate-blue p-3 text-white"
+          onClick={() => {
+            if (!isSignedIn) {
+              return toast.error("Sign in to reply");
+            }
+            if (reply.username === user?.username) {
+              setIsEditOpen(true);
+            } else {
+              toast.error("You can only edit your own replies");
+            }
+          }}
+        >
+          EDIT
+        </button>
+        <button
+          className="rounded-lg bg-Fm-Soft-Red p-3 text-white"
+          onClick={() => deleteReply({ postId: reply.id })}
+        >
+          DELETE
+        </button>
       </div>
-      <p>
-        <span className="pr-2 font-bold">@{reply.replyingTo}</span>
-        {reply.content}
-      </p>
+      {isEditOpen ? (
+        <EditReply
+          postId={reply.id}
+          content={reply.content}
+          setIsEditOpen={setIsEditOpen}
+        />
+      ) : (
+        <p>
+          <span className="pr-2 font-bold">@{reply.replyingTo}</span>
+          {reply.content}
+        </p>
+      )}
+
       <div className="flex">
         <button disabled={isLoading} onClick={() => handleVote(reply.id, "1")}>
           +
@@ -181,6 +300,7 @@ function Reply({ reply }: { reply: PostType["replies"][number] }) {
         <CreateReply
           postIdProp={reply.postId}
           replyingToProp={reply.username}
+          setIsReplyingOpen={setIsReplyOpen}
         />
       )}
     </div>

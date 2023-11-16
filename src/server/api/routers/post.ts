@@ -91,4 +91,82 @@ export const postRouter = createTRPCRouter({
         });
       }
     }),
+  editPost: privateProcedure
+    .input(
+      z.object({
+        postId: z.string(),
+        content: z
+          .string()
+          .min(5, { message: "Content is too short" })
+          .max(300, { message: "Content is too long" }),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const user = await currentUser();
+      if (!ctx.auth.userId && !user)
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Unauthorized" });
+      const post = await ctx.db.post.findUnique({
+        where: {
+          id: input.postId,
+        },
+      });
+      if (!post)
+        throw new TRPCError({ code: "NOT_FOUND", message: "Post not found" });
+      if (post.username !== user?.username)
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You are not authorized to edit this post",
+        });
+      await ctx.db.post.update({
+        where: {
+          id: input.postId,
+        },
+        data: {
+          content: input.content,
+        },
+      });
+      return { message: "Post updated" };
+    }),
+  deletePost: privateProcedure
+    .input(
+      z.object({
+        postId: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const user = await currentUser();
+      if (!ctx.auth.userId && !user)
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Unauthorized" });
+      const post = await ctx.db.post.findUnique({
+        where: {
+          id: input.postId,
+        },
+      });
+      //check if post exists and is owned by user
+      if (!post)
+        throw new TRPCError({ code: "NOT_FOUND", message: "Post not found" });
+      if (post.username !== user?.username)
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You are not authorized to delete this post",
+        });
+      //delete the replies first
+      const replies = await ctx.db.reply.deleteMany({
+        where: {
+          postId: input.postId,
+        },
+      });
+      replies;
+      //delete post
+      await ctx.db.post.delete({
+        where: {
+          id: input.postId,
+        },
+      });
+      const message =
+        replies.count === 0
+          ? "Post with no replies deleted"
+          : `Post and ${replies.count} replies deleted`;
+      return { message: message };
+    }),
 });

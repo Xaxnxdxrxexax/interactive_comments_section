@@ -18,36 +18,33 @@ import { api } from "~/trpc/react";
 // import { type User, currentUser } from "@clerk/nextjs/server";
 // import clsx from "clsx";
 // type RouterOutput = inferRouterOutputs<AppRouter>;
-export default function CreateReply({
-  postIdProp,
-  replyingToProp,
-  setIsReplyingOpen,
+export default function EditReply({
+  postId,
+  content,
+  setIsEditOpen,
 }: {
-  postIdProp: string;
-  replyingToProp: string;
-  setIsReplyingOpen: (value: boolean) => void;
+  postId: string;
+  content: string;
+  setIsEditOpen: (value: boolean) => void;
 }) {
-  const { register, handleSubmit, resetField } = useForm<{ content: string }>();
+  const { register, handleSubmit } = useForm<{ content: string }>();
   const ctx = api.useUtils();
-  const { mutate, isLoading: isPosting } = api.reply.createReply.useMutation({
-    onSuccess: () => {
-      resetField("content");
-      void ctx.post.getAll.invalidate();
-      setIsReplyingOpen(false);
-    },
-    onError: (e) => {
-      const errorMessage = e.data?.zodError?.fieldErrors.content;
-      if (errorMessage?.[0]) {
-        toast.error(errorMessage[0]);
-      }
-    },
-  });
+  const { mutate: editReply, isLoading: isEditing } =
+    api.reply.editReply.useMutation({
+      onSuccess: (e) => {
+        void ctx.post.getAll.invalidate();
+        toast.success(e.message);
+        setIsEditOpen(false);
+      },
+      onError: (e) => {
+        toast.error(e.message);
+      },
+    });
 
   const onSubmit: SubmitHandler<{ content: string }> = (data) => {
-    mutate({
+    editReply({
       content: data.content,
-      postId: postIdProp,
-      replyingTo: replyingToProp,
+      postId: postId,
     });
   };
 
@@ -55,7 +52,7 @@ export default function CreateReply({
     <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
       <textarea
         className="flex-grow border"
-        placeholder="Add a comment"
+        defaultValue={content}
         {...register("content", {
           required: true,
         })}
@@ -70,10 +67,10 @@ export default function CreateReply({
         </div>
         <button
           type="submit"
-          disabled={isPosting}
+          disabled={isEditing}
           className="rounded-lg bg-Fm-Moderate-blue p-4 text-Fm-Very-light-gray"
         >
-          SEND
+          UPDATE
         </button>
       </div>
     </form>

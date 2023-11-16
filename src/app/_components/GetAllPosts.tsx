@@ -91,7 +91,7 @@ function Post({ post }: { post: PostType }) {
             className="rounded-lg bg-Fm-Moderate-blue p-3 text-white"
             onClick={() => {
               if (!isSignedIn) {
-                return toast.error("Sign in to reply");
+                return toast.error("Sign in to edit");
               }
               if (post.username === user?.username) {
                 setIsEditOpen(true);
@@ -202,6 +202,7 @@ function Reply({ reply }: { reply: PostType["replies"][number] }) {
   const { isSignedIn, user } = useUser();
   const [isReplyOpen, setIsReplyOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const ctx = api.useUtils();
   const { mutate, isLoading } = api.reply.voteReply.useMutation({
     onSuccess: () => {
@@ -240,7 +241,7 @@ function Reply({ reply }: { reply: PostType["replies"][number] }) {
           className="rounded-lg bg-Fm-Moderate-blue p-3 text-white"
           onClick={() => {
             if (!isSignedIn) {
-              return toast.error("Sign in to reply");
+              return toast.error("Sign in to edit");
             }
             if (reply.username === user?.username) {
               setIsEditOpen(true);
@@ -253,10 +254,36 @@ function Reply({ reply }: { reply: PostType["replies"][number] }) {
         </button>
         <button
           className="rounded-lg bg-Fm-Soft-Red p-3 text-white"
-          onClick={() => deleteReply({ postId: reply.id })}
+          onClick={() => {
+            if (!isSignedIn) return toast.error("sign in to delete");
+            if (reply.username !== user?.username)
+              return toast.error("You can only delete your own replies");
+            setShowDeleteModal(true);
+          }}
         >
           DELETE
         </button>
+        {showDeleteModal && (
+          <div className="fixed left-0 top-0 z-50 grid h-screen w-screen grid-cols-1 place-items-center justify-center bg-Fm-Grayish-Blue/80">
+            <div className="h-[200px] w-[200px] rounded-lg bg-Fm-Very-light-gray text-Fm-Dark-blue">
+              <p>Are you sure?</p>
+              <div className="flex items-center justify-around">
+                <button
+                  className="rounded-lg bg-Fm-Soft-Red"
+                  onClick={() => deleteReply({ postId: reply.id })}
+                >
+                  YES
+                </button>
+                <button
+                  className="rounded-lg bg-Fm-Moderate-blue"
+                  onClick={() => setShowDeleteModal(false)}
+                >
+                  NO
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       {isEditOpen ? (
         <EditReply

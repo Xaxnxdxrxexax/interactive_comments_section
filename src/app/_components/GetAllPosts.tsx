@@ -43,6 +43,16 @@ export default function GetAllPosts() {
 type PostType = RouterOutput["post"]["getAll"][number];
 
 function Post({ post }: { post: PostType }) {
+  const ctx = api.useUtils();
+  const { mutate, isLoading: isVoting } = api.post.votePost.useMutation({
+    onSuccess: () => {
+      void ctx.post.getAll.invalidate();
+    },
+  });
+
+  function handleVote(postId: string, vote: "1" | "-1") {
+    mutate({ postId, vote });
+  }
   const { isSignedIn } = useUser();
   const [isReplyOpen, setIsReplyOpen] = useState(false);
   return (
@@ -63,9 +73,19 @@ function Post({ post }: { post: PostType }) {
         <p>{post.content}</p>
         <div className="flex items-center justify-around">
           <div className="flex">
-            <p>+</p>
+            <button
+              disabled={isVoting}
+              onClick={() => handleVote(post.id, "1")}
+            >
+              +
+            </button>
             <p>{post.score}</p>
-            <p>-</p>
+            <button
+              disabled={isVoting}
+              onClick={() => handleVote(post.id, "-1")}
+            >
+              -
+            </button>
           </div>
           <button
             className={clsx(
@@ -101,6 +121,15 @@ function Post({ post }: { post: PostType }) {
 function Reply({ reply }: { reply: PostType["replies"][number] }) {
   const { isSignedIn } = useUser();
   const [isReplyOpen, setIsReplyOpen] = useState(false);
+  const ctx = api.useUtils();
+  const { mutate, isLoading } = api.post.voteReply.useMutation({
+    onSuccess: () => {
+      void ctx.post.getAll.invalidate();
+    },
+  });
+  function handleVote(postId: string, vote: "1" | "-1") {
+    mutate({ postId, vote });
+  }
   return (
     <div key={reply.id} className="relative bg-Fm-White p-4">
       <div className="flex gap-4">
@@ -120,9 +149,13 @@ function Reply({ reply }: { reply: PostType["replies"][number] }) {
         {reply.content}
       </p>
       <div className="flex">
-        <p>+</p>
+        <button disabled={isLoading} onClick={() => handleVote(reply.id, "1")}>
+          +
+        </button>
         <p>{reply.score}</p>
-        <p>-</p>
+        <button disabled={isLoading} onClick={() => handleVote(reply.id, "-1")}>
+          -
+        </button>
       </div>
       <button
         className={clsx(

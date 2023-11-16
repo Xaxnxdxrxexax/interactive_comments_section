@@ -71,4 +71,64 @@ export const postRouter = createTRPCRouter({
       });
       return reply;
     }),
+  votePost: privateProcedure
+    .input(
+      z.object({
+        postId: z.string(),
+        vote: z.enum(["1", "-1"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const user = await currentUser();
+      if (!ctx.auth.userId && !user)
+        throw new TRPCError({ code: "UNAUTHORIZED" });
+      // check if post or reply exists
+      const doesPostExist = await ctx.db.post.findUnique({
+        where: {
+          id: input.postId,
+        },
+      });
+      if (!doesPostExist) throw new TRPCError({ code: "NOT_FOUND" });
+      // check if user has already voted
+      // vote
+      const votedPost = await ctx.db.post.update({
+        where: {
+          id: input.postId,
+        },
+        data: {
+          score: { increment: Number(input.vote) },
+        },
+      });
+      return votedPost;
+    }),
+  voteReply: privateProcedure
+    .input(
+      z.object({
+        postId: z.string(),
+        vote: z.enum(["1", "-1"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const user = await currentUser();
+      if (!ctx.auth.userId && !user)
+        throw new TRPCError({ code: "UNAUTHORIZED" });
+      // check if post or reply exists
+      const doesReplyExist = await ctx.db.reply.findUnique({
+        where: {
+          id: input.postId,
+        },
+      });
+      if (!doesReplyExist) throw new TRPCError({ code: "NOT_FOUND" });
+      // check if user has already voted
+      // vote
+      const votedReply = await ctx.db.reply.update({
+        where: {
+          id: input.postId,
+        },
+        data: {
+          score: { increment: Number(input.vote) },
+        },
+      });
+      return votedReply;
+    }),
 });

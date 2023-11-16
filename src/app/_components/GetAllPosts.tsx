@@ -17,6 +17,7 @@ import { api } from "~/trpc/react";
 import CreatePost from "./CreatePost";
 import { useState } from "react";
 import CreateReply from "./CreateReply";
+import toast from "react-hot-toast";
 type RouterOutput = inferRouterOutputs<AppRouter>;
 
 dayjs.extend(relativeTime);
@@ -47,6 +48,9 @@ function Post({ post }: { post: PostType }) {
   const { mutate, isLoading: isVoting } = api.post.votePost.useMutation({
     onSuccess: () => {
       void ctx.post.getAll.invalidate();
+    },
+    onError: (e) => {
+      toast.error(e.message);
     },
   });
 
@@ -122,7 +126,7 @@ function Reply({ reply }: { reply: PostType["replies"][number] }) {
   const { isSignedIn } = useUser();
   const [isReplyOpen, setIsReplyOpen] = useState(false);
   const ctx = api.useUtils();
-  const { mutate, isLoading } = api.post.voteReply.useMutation({
+  const { mutate, isLoading } = api.reply.voteReply.useMutation({
     onSuccess: () => {
       void ctx.post.getAll.invalidate();
     },

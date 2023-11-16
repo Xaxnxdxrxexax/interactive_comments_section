@@ -1,5 +1,6 @@
 "use client";
 import { type SubmitHandler, useForm } from "react-hook-form";
+import toast from "react-hot-toast";
 import { api } from "~/trpc/react";
 // import {
 //   SignInButton,
@@ -20,10 +21,16 @@ import { api } from "~/trpc/react";
 export default function CreatePost() {
   const { register, handleSubmit, resetField } = useForm<{ content: string }>();
   const ctx = api.useUtils();
-  const { mutate, isLoading: isPosting } = api.post.create.useMutation({
+  const { mutate, isLoading: isPosting } = api.post.createPost.useMutation({
     onSuccess: () => {
       resetField("content");
       void ctx.post.getAll.invalidate();
+    },
+    onError: (e) => {
+      const errorMessage = e.data?.zodError?.fieldErrors.content;
+      if (errorMessage?.[0]) {
+        toast.error(errorMessage[0]);
+      }
     },
   });
 

@@ -5,6 +5,7 @@ import { Rubik } from "next/font/google";
 import { cookies } from "next/headers";
 
 import { TRPCReactProvider } from "~/trpc/react";
+import { Toaster } from "react-hot-toast";
 
 const rubik = Rubik({
   subsets: ["latin"],
@@ -26,6 +27,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en">
         <body className={`font-sans ${rubik.variable}`}>
+          <Toaster />
           <TRPCReactProvider cookies={cookies().toString()}>
             {children}
           </TRPCReactProvider>

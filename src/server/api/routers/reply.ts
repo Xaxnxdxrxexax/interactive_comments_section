@@ -2,32 +2,14 @@ import { currentUser } from "@clerk/nextjs/server";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import {
-  createTRPCRouter,
-  privateProcedure,
-  publicProcedure,
-} from "~/server/api/trpc";
+import { createTRPCRouter, privateProcedure } from "~/server/api/trpc";
 
-export const postRouter = createTRPCRouter({
-  getAll: publicProcedure.query(async ({ ctx }) => {
-    const posts = await ctx.db.post.findMany({
-      take: 100,
-      orderBy: {
-        score: "desc",
-      },
-      include: {
-        replies: {
-          orderBy: {
-            createdAt: "asc",
-          },
-        },
-      },
-    });
-    return posts;
-  }),
-  createPost: privateProcedure
+export const replyRouter = createTRPCRouter({
+  createReply: privateProcedure
     .input(
       z.object({
+        postId: z.string(),
+        replyingTo: z.string(),
         content: z
           .string()
           .min(5, { message: "Content is too short" })
@@ -37,19 +19,21 @@ export const postRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const user = await currentUser();
       if (!ctx.auth.userId && !user)
-        throw new TRPCError({ code: "UNAUTHORIZED", message: "Unauthorized" });
+        throw new TRPCError({ code: "UNAUTHORIZED" });
       const username = user?.username;
       const image = user?.imageUrl;
-      const post = await ctx.db.post.create({
+      const reply = await ctx.db.reply.create({
         data: {
           content: input.content,
-          image: image!,
+          postId: input.postId,
+          replyingTo: input.replyingTo,
           username: username!,
+          image: image!,
         },
       });
-      return post;
+      return reply;
     }),
-  votePost: privateProcedure
+  voteReply: privateProcedure
     .input(
       z.object({
         postId: z.string(),
@@ -61,18 +45,17 @@ export const postRouter = createTRPCRouter({
       if (!ctx.auth.userId && !user)
         throw new TRPCError({ code: "UNAUTHORIZED" });
       // check if post or reply exists
-      const doesPostExist = await ctx.db.post.findUnique({
+      const doesReplyExist = await ctx.db.reply.findUnique({
         where: {
           id: input.postId,
         },
       });
-      if (!doesPostExist)
-        throw new TRPCError({ code: "NOT_FOUND", message: "Post not found" });
+      if (!doesReplyExist) throw new TRPCError({ code: "NOT_FOUND" });
       // check if user has already voted
-      const hasAlreadyVoted = doesPostExist.votedBy.includes(ctx.auth.userId);
+      const hasAlreadyVoted = doesReplyExist.votedBy.includes(ctx.auth.userId);
       // vote
       if (!hasAlreadyVoted) {
-        const votedPost = await ctx.db.post.update({
+        const votedReply = await ctx.db.reply.update({
           where: {
             id: input.postId,
           },
@@ -83,11 +66,11 @@ export const postRouter = createTRPCRouter({
             },
           },
         });
-        return votedPost;
+        return votedReply;
       } else {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "You already voted for this post",
+          message: "You already voted for this reply",
         });
       }
     }),

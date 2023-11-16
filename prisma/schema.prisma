@@ -18,6 +18,7 @@ model Post {
     score     Int      @default(1)
     username  String
     image     String
+    votedBy   String[]
     replies   Reply[]
 
     @@index([username])
@@ -32,5 +33,6 @@ model Reply {
     score      Int      @default(1)
     username   String
     image      String
+    votedBy    String[]
     post       Post     @relation(fields: [postId], references: [id])
 }

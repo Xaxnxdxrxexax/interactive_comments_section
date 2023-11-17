@@ -1,32 +1,21 @@
 "use client";
+import { useUser } from "@clerk/nextjs";
+import Image from "next/image";
 import { type SubmitHandler, useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import { api } from "~/trpc/react";
-// import {
-//   SignInButton,
-//   SignOutButton,
-//   UserButton,
-//   auth,
-//   useUser,
-// } from "@clerk/nextjs";
-
-// import Image from "next/image";
-// import dayjs from "dayjs";
-// import relativeTime from "dayjs/plugin/relativeTime";
-// import type { inferRouterOutputs } from "@trpc/server";
-// import type { AppRouter } from "~/server/api/root";
-// import { type User, currentUser } from "@clerk/nextjs/server";
-// import clsx from "clsx";
-// type RouterOutput = inferRouterOutputs<AppRouter>;
 export default function EditReply({
   postId,
   content,
+  replyingTo,
   setIsEditOpen,
 }: {
   postId: string;
   content: string;
+  replyingTo: string;
   setIsEditOpen: (value: boolean) => void;
 }) {
+  const { user } = useUser();
   const { register, handleSubmit } = useForm<{ content: string }>();
   const ctx = api.useUtils();
   const { mutate: editReply, isLoading: isEditing } =
@@ -49,30 +38,24 @@ export default function EditReply({
   };
 
   return (
-    <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
+    <form
+      className="items-top mt-2 flex justify-between rounded-xl border bg-white p-4"
+      onSubmit={handleSubmit(onSubmit)}
+    >
       <textarea
-        className="flex-grow border"
+        className="mx-3 flex-grow rounded-lg border border-Fm-Grayish-Blue p-2"
         defaultValue={content}
         {...register("content", {
           required: true,
         })}
       />
-      <div className="flex items-center justify-around">
-        <div className="relative h-12 w-12">
-          {/* <Image
-             src={user!.imageUrl}
-             alt={`${user!.username}'s picture`}
-             fill
-           /> */}
-        </div>
-        <button
-          type="submit"
-          disabled={isEditing}
-          className="rounded-lg bg-Fm-Moderate-blue p-4 text-Fm-Very-light-gray"
-        >
-          UPDATE
-        </button>
-      </div>
+      <button
+        type="submit"
+        disabled={isEditing}
+        className="h-10 w-20 rounded-lg bg-Fm-Moderate-blue text-Fm-Very-light-gray md:h-12 md:w-24"
+      >
+        UPDATE
+      </button>
     </form>
   );
 }

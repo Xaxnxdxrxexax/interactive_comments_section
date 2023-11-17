@@ -16,8 +16,8 @@ import { db } from "~/server/db";
 
 import {
   getAuth,
-  SignedInAuthObject,
-  SignedOutAuthObject,
+  type SignedInAuthObject,
+  type SignedOutAuthObject,
 } from "@clerk/nextjs/server";
 
 interface AuthContext {

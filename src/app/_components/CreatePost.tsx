@@ -1,30 +1,18 @@
 "use client";
+import { SignInButton, UserButton, useUser } from "@clerk/nextjs";
+import clsx from "clsx";
 import { type SubmitHandler, useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import { api } from "~/trpc/react";
-// import {
-//   SignInButton,
-//   SignOutButton,
-//   UserButton,
-//   auth,
-//   useUser,
-// } from "@clerk/nextjs";
-
-// import Image from "next/image";
-// import dayjs from "dayjs";
-// import relativeTime from "dayjs/plugin/relativeTime";
-// import type { inferRouterOutputs } from "@trpc/server";
-// import type { AppRouter } from "~/server/api/root";
-// import { type User, currentUser } from "@clerk/nextjs/server";
-// import clsx from "clsx";
-// type RouterOutput = inferRouterOutputs<AppRouter>;
 export default function CreatePost() {
   const { register, handleSubmit, resetField } = useForm<{ content: string }>();
   const ctx = api.useUtils();
+  const { isSignedIn } = useUser();
   const { mutate, isLoading: isPosting } = api.post.createPost.useMutation({
     onSuccess: () => {
       resetField("content");
       void ctx.post.getAll.invalidate();
+      toast.success("Post created");
     },
     onError: (e) => {
       const errorMessage = e.data?.zodError?.fieldErrors.content;
@@ -39,30 +27,32 @@ export default function CreatePost() {
   };
 
   return (
-    <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
+    <form
+      className="items-top mt-2 flex w-full justify-between rounded-xl border bg-white p-4"
+      onSubmit={handleSubmit(onSubmit)}
+    >
+      <div className="relative h-11 w-11 shrink-0">
+        {isSignedIn ? <UserButton /> : <SignInButton />}
+      </div>
       <textarea
-        className="flex-grow border"
-        placeholder="Add a comment"
+        className="mx-3 flex-grow rounded-lg border border-Fm-Light-gray p-2"
+        placeholder="Add a comment ..."
         {...register("content", {
           required: true,
         })}
       />
-      <div className="flex items-center justify-around">
-        <div className="relative h-12 w-12">
-          {/* <Image
-             src={user!.imageUrl}
-             alt={`${user!.username}'s picture`}
-             fill
-           /> */}
-        </div>
-        <button
-          type="submit"
-          disabled={isPosting}
-          className="rounded-lg bg-Fm-Moderate-blue p-4 text-Fm-Very-light-gray"
-        >
-          SEND
-        </button>
-      </div>
+      <button
+        type="submit"
+        disabled={isPosting || !isSignedIn}
+        className={clsx(
+          "h-10 w-20 rounded-lg  text-Fm-Very-light-gray md:h-12 md:w-24",
+          !isSignedIn
+            ? "cursor-not-allowed bg-Fm-Grayish-Blue line-through"
+            : "bg-Fm-Moderate-blue",
+        )}
+      >
+        SEND
+      </button>
     </form>
   );
 }

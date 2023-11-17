@@ -57,11 +57,10 @@ export const postRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const user = await currentUser();
-      if (!ctx.auth.userId && !user)
+      if (!ctx.auth.userId)
         throw new TRPCError({
           code: "UNAUTHORIZED",
-          message: "you must log in to vote",
+          message: `you must log in to vote`,
         });
       // check if post or reply exists
       const doesPostExist = await ctx.db.post.findUnique({

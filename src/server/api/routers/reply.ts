@@ -11,7 +11,7 @@ export const replyRouter = createTRPCRouter({
         postId: z.string(),
         replyingTo: z.string(),
         content: z
-          .string()
+          .string({ invalid_type_error: "Content is required" })
           .min(5, { message: "Content is too short" })
           .max(300, { message: "Content is too long" }),
       }),

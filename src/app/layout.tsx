@@ -27,7 +27,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en" className="bg-Fm-Very-light-gray">
         <body className={`font-sans ${rubik.variable}`}>
-          <Toaster />
+          <Toaster position="bottom-center" />
           <TRPCReactProvider cookies={cookies().toString()}>
             {children}
           </TRPCReactProvider>

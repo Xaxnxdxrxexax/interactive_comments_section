@@ -9,7 +9,9 @@ export default function GetAllPosts() {
   if (!data || isLoading)
     return (
       <div className="flex h-screen items-center justify-center">
-        <LoadingSpinner />
+        <div className="h-10 w-10">
+          <LoadingSpinner />
+        </div>
       </div>
     );
 

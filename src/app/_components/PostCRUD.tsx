@@ -1,11 +1,8 @@
 "use client";
 import { SignInButton, UserButton, useUser } from "@clerk/nextjs";
 import { type SubmitHandler, useForm } from "react-hook-form";
-import type { inferRouterOutputs } from "@trpc/server";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { CreateReply, ReadReply } from "./ReplyCRUD";
 import LoadingSpinner from "./utils/LoadingSpinner";
-import type { AppRouter } from "~/server/api/root";
 import toast from "react-hot-toast";
 import { api } from "~/trpc/react";
 import { useState } from "react";
@@ -13,12 +10,29 @@ import Image from "next/image";
 import dayjs from "dayjs";
 import clsx from "clsx";
 
-type RouterOutput = inferRouterOutputs<AppRouter>;
-type PostType = RouterOutput["post"]["getAll"][number];
-
 dayjs.extend(relativeTime);
 
-export function CreatePost() {
+type PostProps = {
+  id: string;
+  content: string;
+  createdAt: Date;
+  score: number;
+  username: string;
+  image: string;
+  votedBy: string[];
+  replies?: PostProps[];
+  replyingTo?: string;
+  postId?: string;
+};
+export function CreatePost({
+  postIdProp,
+  replyingToProp,
+  setIsReplyingOpen,
+}: {
+  postIdProp?: string;
+  replyingToProp?: string;
+  setIsReplyingOpen?: (value: boolean) => void;
+}) {
   const { register, handleSubmit, resetField } = useForm<{ content: string }>();
   const { isSignedIn } = useUser();
   const ctx = api.useUtils();
@@ -42,9 +56,36 @@ export function CreatePost() {
       },
     });
 
-  const onSubmit: SubmitHandler<{ content: string }> = (data) => {
+  const { mutate: createReply, isLoading: isReplying } =
+    api.reply.createReply.useMutation({
+      onSuccess: () => {
+        resetField("content");
+        void ctx.post.getAll.invalidate();
+        if (setIsReplyingOpen) setIsReplyingOpen(false);
+      },
+      onError: (e) => {
+        const errorMessage = e.data?.zodError?.fieldErrors.content;
+        if (errorMessage?.[0]) {
+          toast.error(errorMessage[0]);
+        }
+      },
+    });
+
+  const onSubmit: SubmitHandler<{
+    content: string;
+    replyingTo?: string;
+    postId?: string;
+  }> = (data) => {
     if (!isSignedIn) return toast.error("Please sign in to post");
-    createPost(data);
+    if (replyingToProp && postIdProp) {
+      createReply({
+        content: data.content,
+        postId: postIdProp,
+        replyingTo: replyingToProp,
+      });
+    } else {
+      createPost({ content: data.content });
+    }
   };
 
   return (
@@ -76,10 +117,11 @@ export function CreatePost() {
           !isSignedIn
             ? "cursor-not-allowed bg-Fm-Grayish-Blue line-through"
             : "bg-Fm-Moderate-blue",
+          isPosting || isReplying ? "cursor-wait" : "",
         )}
       >
-        {isPosting ? (
-          <div className="aspect-square w-5">
+        {isPosting || isReplying ? (
+          <div className="aspect-square w-5 cursor-wait">
             <LoadingSpinner />
           </div>
         ) : (
@@ -90,7 +132,7 @@ export function CreatePost() {
   );
 }
 
-export function ReadPost({ post }: { post: PostType }) {
+export function ReadPost({ post }: { post: PostProps }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isReplyOpen, setIsReplyOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -101,17 +143,19 @@ export function ReadPost({ post }: { post: PostType }) {
     /* Voting logic */
   }
 
-  const { mutate: votePost, isLoading: isVoting } =
-    api.post.votePost.useMutation({
-      onSuccess: () => {
-        void ctx.post.getAll.invalidate();
-      },
-      onError: (e) => {
-        const message = e.data?.zodError?.fieldErrors.content;
-        toast.error(message?.[0] ?? e.message);
-      },
-    });
+  const votePostOrReply = post.replyingTo
+    ? api.reply.voteReply.useMutation
+    : api.post.votePost.useMutation;
 
+  const { mutate: votePost, isLoading: isVoting } = votePostOrReply({
+    onSuccess: () => {
+      void ctx.post.getAll.invalidate();
+    },
+    onError: (e) => {
+      const message = e.data?.zodError?.fieldErrors.content;
+      toast.error(message?.[0] ?? e.message);
+    },
+  });
   const hasTheUserVoted = post.votedBy.includes(user?.id ?? "");
 
   function handleVote(postId: string, vote: "1" | "-1") {
@@ -123,7 +167,11 @@ export function ReadPost({ post }: { post: PostType }) {
     /* Delete logic */
   }
 
-  const { mutate: deletePost } = api.post.deletePost.useMutation({
+  const deletePostOrReply = post.replyingTo
+    ? api.reply.deleteReply.useMutation
+    : api.post.deletePost.useMutation;
+
+  const { mutate: deletePost, isLoading: isDeleting } = deletePostOrReply({
     onSuccess: (e) => {
       void ctx.post.getAll.invalidate();
       toast.success(e.message);
@@ -161,10 +209,18 @@ export function ReadPost({ post }: { post: PostType }) {
           <EditPost
             postId={post.id}
             content={post.content}
+            replyingTo={post.replyingTo}
             setIsEditOpen={setIsEditOpen}
           />
         ) : (
-          <p className="my-4 text-Fm-Dark-blue">{post.content}</p>
+          <p className="my-4 text-Fm-Dark-blue">
+            {post.replyingTo && (
+              <span className="mr-2 font-semibold text-Fm-Moderate-blue">
+                @{post.replyingTo}
+              </span>
+            )}
+            {post.content}
+          </p>
         )}
         <div className="flex items-center text-sm">
           <div
@@ -176,7 +232,10 @@ export function ReadPost({ post }: { post: PostType }) {
             )}
           >
             <button
-              className={hasTheUserVoted ? "cursor-not-allowed" : ""}
+              className={clsx(
+                hasTheUserVoted ? "cursor-not-allowed" : "",
+                isVoting ? "cursor-wait" : "",
+              )}
               onClick={() => handleVote(post.id, "1")}
               disabled={isVoting}
             >
@@ -184,7 +243,10 @@ export function ReadPost({ post }: { post: PostType }) {
             </button>
             <p className="place-self-center font-semibold ">{post.score}</p>
             <button
-              className={hasTheUserVoted ? "cursor-not-allowed" : ""}
+              className={clsx(
+                hasTheUserVoted ? "cursor-not-allowed" : "",
+                isVoting ? "cursor-wait" : "",
+              )}
               onClick={() => handleVote(post.id, "-1")}
               disabled={isVoting}
             >
@@ -277,14 +339,22 @@ export function ReadPost({ post }: { post: PostType }) {
                 </p>
                 <div className="flex h-12 items-stretch justify-between font-bold text-white">
                   <button
-                    className="rounded-lg bg-Fm-Grayish-Blue px-3"
+                    className={clsx(
+                      "rounded-lg bg-Fm-Grayish-Blue px-3",
+                      isDeleting ? "cursor-wait" : "",
+                    )}
                     onClick={() => setShowDeleteModal(false)}
+                    disabled={isDeleting}
                   >
                     NO, CANCEL
                   </button>
                   <button
-                    className="rounded-lg bg-Fm-Soft-Red px-3"
+                    className={clsx(
+                      "rounded-lg bg-Fm-Soft-Red px-3",
+                      isDeleting ? "cursor-wait" : "",
+                    )}
                     onClick={() => deletePost({ postId: post.id })}
+                    disabled={isDeleting}
                   >
                     YES, DELETE
                   </button>
@@ -295,17 +365,19 @@ export function ReadPost({ post }: { post: PostType }) {
         </div>
       </div>
       {isSignedIn && isReplyOpen && (
-        <CreateReply
+        <CreatePost
           postIdProp={post.id}
           replyingToProp={post.username}
           setIsReplyingOpen={setIsReplyOpen}
         />
       )}
-      <div className="mt-4 space-y-4 border-l border-Fm-Light-gray bg-Fm-Very-light-gray pl-4">
-        {post.replies.map((reply) => {
-          return <ReadReply key={reply.id} reply={reply} />;
-        })}
-      </div>
+      {post.replies && (
+        <div className="mt-4 space-y-4 border-l border-Fm-Light-gray bg-Fm-Very-light-gray pl-4">
+          {post.replies.map((reply) => {
+            return <ReadPost key={reply.id} post={reply} />;
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -313,10 +385,12 @@ export function ReadPost({ post }: { post: PostType }) {
 export function EditPost({
   postId,
   content,
+  replyingTo,
   setIsEditOpen,
 }: {
   postId: string;
   content: string;
+  replyingTo?: string;
   setIsEditOpen: (value: boolean) => void;
 }) {
   const { register, handleSubmit } = useForm<{ content: string }>();
@@ -326,17 +400,20 @@ export function EditPost({
     /* Editing logic */
   }
 
-  const { mutate: editPost, isLoading: isEditing } =
-    api.post.editPost.useMutation({
-      onSuccess: (e) => {
-        void ctx.post.getAll.invalidate();
-        toast.success(e.message);
-        setIsEditOpen(false);
-      },
-      onError: (e) => {
-        toast.error(e.message);
-      },
-    });
+  const isPostOrReplyEditing = replyingTo
+    ? api.reply.editReply.useMutation
+    : api.post.editPost.useMutation;
+
+  const { mutate: editPost, isLoading: isEditing } = isPostOrReplyEditing({
+    onSuccess: (e) => {
+      void ctx.post.getAll.invalidate();
+      toast.success(e.message);
+      setIsEditOpen(false);
+    },
+    onError: (e) => {
+      toast.error(e.message);
+    },
+  });
 
   const onSubmit: SubmitHandler<{ content: string }> = (data) => {
     editPost({
@@ -361,14 +438,17 @@ export function EditPost({
       <button
         type="submit"
         disabled={isEditing}
-        className="flex h-10 w-20 items-center justify-center self-end rounded-lg bg-Fm-Moderate-blue text-Fm-Very-light-gray md:h-12 md:w-24"
+        className={clsx(
+          "flex h-10 w-20 items-center justify-center self-end rounded-lg bg-Fm-Moderate-blue text-Fm-Very-light-gray md:h-12 md:w-24",
+          isEditing ? "cursor-wait" : "",
+        )}
       >
         {isEditing ? (
           <div className="aspect-square w-5">
             <LoadingSpinner />
           </div>
         ) : (
-          "SEND"
+          "UPDATE"
         )}
       </button>
     </form>

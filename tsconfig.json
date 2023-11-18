@@ -36,7 +36,8 @@
     "**/*.tsx",
     "**/*.cjs",
     "**/*.mjs",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "../interactive-comments-section-main/ReplyCRUD.tsx"
   ],
   "exclude": ["node_modules"]
 }

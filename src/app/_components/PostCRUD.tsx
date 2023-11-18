@@ -1,17 +1,17 @@
 "use client";
 import { SignInButton, UserButton, useUser } from "@clerk/nextjs";
-import clsx from "clsx";
 import { type SubmitHandler, useForm } from "react-hook-form";
-import toast from "react-hot-toast";
-import { api } from "~/trpc/react";
-import Image from "next/image";
-import dayjs from "dayjs";
-import relativeTime from "dayjs/plugin/relativeTime";
 import type { inferRouterOutputs } from "@trpc/server";
-import type { AppRouter } from "~/server/api/root";
-import { useState } from "react";
+import relativeTime from "dayjs/plugin/relativeTime";
 import { CreateReply, ReadReply } from "./ReplyCRUD";
 import LoadingSpinner from "./utils/LoadingSpinner";
+import type { AppRouter } from "~/server/api/root";
+import toast from "react-hot-toast";
+import { api } from "~/trpc/react";
+import { useState } from "react";
+import Image from "next/image";
+import dayjs from "dayjs";
+import clsx from "clsx";
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type PostType = RouterOutput["post"]["getAll"][number];
@@ -20,8 +20,12 @@ dayjs.extend(relativeTime);
 
 export function CreatePost() {
   const { register, handleSubmit, resetField } = useForm<{ content: string }>();
-  const ctx = api.useUtils();
   const { isSignedIn } = useUser();
+  const ctx = api.useUtils();
+
+  {
+    /* Create post logic */
+  }
 
   const { mutate: createPost, isLoading: isPosting } =
     api.post.createPost.useMutation({
@@ -48,8 +52,14 @@ export function CreatePost() {
       className="mt-2 flex w-full flex-wrap items-center justify-between rounded-xl border bg-white p-4 md:flex-nowrap md:items-start"
       onSubmit={handleSubmit(onSubmit)}
     >
-      <div className="relative order-2 flex h-11 w-11 shrink-0 items-center justify-center md:order-1">
-        {isSignedIn ? <UserButton /> : <SignInButton />}
+      <div className="relative order-2 flex h-11 w-11 shrink-0 basis-20 items-center justify-center md:order-1">
+        {isSignedIn ? (
+          <UserButton />
+        ) : (
+          <div className="rounded-md bg-Fm-Moderate-blue p-4 text-sm text-white">
+            <SignInButton />
+          </div>
+        )}
       </div>
       <textarea
         className="order-1 mb-3 w-full flex-grow resize-none rounded-lg border border-Fm-Light-gray p-2 md:order-2 md:mx-3 md:mb-0"
@@ -81,9 +91,16 @@ export function CreatePost() {
 }
 
 export function ReadPost({ post }: { post: PostType }) {
-  const ctx = api.useUtils();
-  const { user } = useUser();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isReplyOpen, setIsReplyOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const { user, isSignedIn } = useUser();
+  const ctx = api.useUtils();
+
+  {
+    /* Voting logic */
+  }
+
   const { mutate: votePost, isLoading: isVoting } =
     api.post.votePost.useMutation({
       onSuccess: () => {
@@ -94,6 +111,18 @@ export function ReadPost({ post }: { post: PostType }) {
         toast.error(message?.[0] ?? e.message);
       },
     });
+
+  const hasTheUserVoted = post.votedBy.includes(user?.id ?? "");
+
+  function handleVote(postId: string, vote: "1" | "-1") {
+    if (!isSignedIn) return toast.error("Please sign in to vote");
+    votePost({ postId, vote });
+  }
+
+  {
+    /* Delete logic */
+  }
+
   const { mutate: deletePost } = api.post.deletePost.useMutation({
     onSuccess: (e) => {
       void ctx.post.getAll.invalidate();
@@ -104,13 +133,6 @@ export function ReadPost({ post }: { post: PostType }) {
     },
   });
 
-  function handleVote(postId: string, vote: "1" | "-1") {
-    if (!isSignedIn) return toast.error("Please sign in to vote");
-    votePost({ postId, vote });
-  }
-  const { isSignedIn } = useUser();
-  const [isReplyOpen, setIsReplyOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
   return (
     <div key={post.id} className="relative w-full">
       <div className="relative rounded-xl bg-Fm-White p-4">
@@ -145,19 +167,26 @@ export function ReadPost({ post }: { post: PostType }) {
           <p className="my-4 text-Fm-Dark-blue">{post.content}</p>
         )}
         <div className="flex items-center text-sm">
-          <div className="grid h-9 w-24 grid-cols-3 place-items-stretch rounded-xl bg-Fm-Very-light-gray text-Fm-Grayish-Blue">
+          <div
+            className={clsx(
+              "grid h-9 w-24 grid-cols-3 place-items-stretch rounded-xl text-Fm-Grayish-Blue",
+              hasTheUserVoted
+                ? "cursor-not-allowed bg-Fm-Moderate-blue text-white"
+                : "bg-Fm-Very-light-gray text-Fm-Moderate-blue ",
+            )}
+          >
             <button
-              disabled={isVoting}
+              className={hasTheUserVoted ? "cursor-not-allowed" : ""}
               onClick={() => handleVote(post.id, "1")}
+              disabled={isVoting}
             >
               +
             </button>
-            <p className="place-self-center font-semibold text-Fm-Moderate-blue">
-              {post.score}
-            </p>
+            <p className="place-self-center font-semibold ">{post.score}</p>
             <button
-              disabled={isVoting}
+              className={hasTheUserVoted ? "cursor-not-allowed" : ""}
               onClick={() => handleVote(post.id, "-1")}
+              disabled={isVoting}
             >
               -
             </button>
@@ -292,6 +321,11 @@ export function EditPost({
 }) {
   const { register, handleSubmit } = useForm<{ content: string }>();
   const ctx = api.useUtils();
+
+  {
+    /* Editing logic */
+  }
+
   const { mutate: editPost, isLoading: isEditing } =
     api.post.editPost.useMutation({
       onSuccess: (e) => {

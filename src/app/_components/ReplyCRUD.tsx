@@ -1,19 +1,21 @@
 "use client";
-import { useUser } from "@clerk/nextjs";
-
-import Image from "next/image";
-import dayjs from "dayjs";
+import { type SubmitHandler, useForm } from "react-hook-form";
 import type { inferRouterOutputs } from "@trpc/server";
+import relativeTime from "dayjs/plugin/relativeTime";
 import type { AppRouter } from "~/server/api/root";
-import clsx from "clsx";
-
+import LoadingSpinner from "./utils/LoadingSpinner";
+import { useUser } from "@clerk/nextjs";
+import toast from "react-hot-toast";
 import { api } from "~/trpc/react";
 import { useState } from "react";
-import toast from "react-hot-toast";
-import { type SubmitHandler, useForm } from "react-hook-form";
-import LoadingSpinner from "./utils/LoadingSpinner";
+import Image from "next/image";
+import dayjs from "dayjs";
+import clsx from "clsx";
+
 type RouterOutput = inferRouterOutputs<AppRouter>;
-type PostType = RouterOutput["post"]["getAll"][number];
+type ReplyType = RouterOutput["post"]["getAll"][number]["replies"][number];
+
+dayjs.extend(relativeTime);
 
 export function CreateReply({
   postIdProp,
@@ -29,6 +31,11 @@ export function CreateReply({
   }>();
   const ctx = api.useUtils();
   const { user } = useUser();
+
+  {
+    /* Create reply logic */
+  }
+
   const { mutate: replyPost, isLoading: isReplying } =
     api.reply.createReply.useMutation({
       onSuccess: () => {
@@ -91,24 +98,20 @@ export function CreateReply({
   );
 }
 
-export function ReadReply({ reply }: { reply: PostType["replies"][number] }) {
-  const { isSignedIn, user } = useUser();
+export function ReadReply({ reply }: { reply: ReplyType }) {
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isReplyOpen, setIsReplyOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const { isSignedIn, user } = useUser();
   const ctx = api.useUtils();
+
+  {
+    /* Voting logic */
+  }
+
   const { mutate, isLoading: isVoting } = api.reply.voteReply.useMutation({
     onSuccess: () => {
       void ctx.post.getAll.invalidate();
-    },
-    onError: (e) => {
-      toast.error(e.message);
-    },
-  });
-  const { mutate: deleteReply } = api.reply.deleteReply.useMutation({
-    onSuccess: () => {
-      void ctx.post.getAll.invalidate();
-      toast.success("Reply deleted");
     },
     onError: (e) => {
       toast.error(e.message);
@@ -118,6 +121,21 @@ export function ReadReply({ reply }: { reply: PostType["replies"][number] }) {
     if (!isSignedIn) return toast.error("Please sign in to vote");
     mutate({ postId, vote });
   }
+  const hasTheUserVoted = reply.votedBy.includes(user?.id ?? "");
+
+  {
+    /* Delete logic */
+  }
+
+  const { mutate: deleteReply } = api.reply.deleteReply.useMutation({
+    onSuccess: () => {
+      void ctx.post.getAll.invalidate();
+      toast.success("Reply deleted");
+    },
+    onError: (e) => {
+      toast.error(e.message);
+    },
+  });
   return (
     <div key={reply.id} className="relative">
       <div className="relative rounded-xl  bg-Fm-White p-4">
@@ -159,19 +177,26 @@ export function ReadReply({ reply }: { reply: PostType["replies"][number] }) {
         )}
         {/* the vote buttons and the reply/edit/delete */}
         <div className="flex items-center text-sm">
-          <div className="grid h-9 w-24 grid-cols-3 place-items-stretch rounded-xl bg-Fm-Very-light-gray text-Fm-Grayish-Blue">
+          <div
+            className={clsx(
+              "grid h-9 w-24 grid-cols-3 place-items-stretch rounded-xl text-Fm-Grayish-Blue",
+              hasTheUserVoted
+                ? "cursor-not-allowed bg-Fm-Moderate-blue text-white"
+                : "bg-Fm-Very-light-gray text-Fm-Moderate-blue ",
+            )}
+          >
             <button
-              disabled={isVoting}
+              className={hasTheUserVoted ? "cursor-not-allowed" : ""}
               onClick={() => handleVote(reply.id, "1")}
+              disabled={isVoting}
             >
               +
             </button>
-            <p className="place-self-center font-semibold text-Fm-Moderate-blue">
-              {reply.score}
-            </p>
+            <p className="place-self-center font-semibold">{reply.score}</p>
             <button
-              disabled={isVoting}
+              className={hasTheUserVoted ? "cursor-not-allowed" : ""}
               onClick={() => handleVote(reply.id, "-1")}
+              disabled={isVoting}
             >
               -
             </button>
@@ -301,6 +326,11 @@ export function EditReply({
 }) {
   const { register, handleSubmit } = useForm<{ content: string }>();
   const ctx = api.useUtils();
+
+  {
+    /* Editing logic */
+  }
+
   const { mutate: editReply, isLoading: isEditing } =
     api.reply.editReply.useMutation({
       onSuccess: (e) => {

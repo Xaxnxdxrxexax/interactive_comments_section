@@ -122,7 +122,7 @@ export function ReadReply({ reply }: { reply: PostType["replies"][number] }) {
     <div key={reply.id} className="relative">
       <div className="relative rounded-xl  bg-Fm-White p-4">
         <div className="flex items-center gap-4">
-          <div className="relative h-8 w-8">
+          <div className="relative h-8 w-8 shrink-0">
             <Image
               src={reply.image}
               alt={`${reply.username}'s picture`}

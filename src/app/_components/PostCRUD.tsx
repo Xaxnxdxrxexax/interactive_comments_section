@@ -115,7 +115,7 @@ export function ReadPost({ post }: { post: PostType }) {
     <div key={post.id} className="relative w-full">
       <div className="relative rounded-xl bg-Fm-White p-4">
         <div className="flex items-center gap-4">
-          <div className="relative h-8 w-8">
+          <div className="relative h-8 w-8 shrink-0">
             <Image
               src={post.image}
               alt={`${post.username}'s picture`}

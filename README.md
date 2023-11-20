@@ -4,6 +4,7 @@
 
 - Next.js 14
 - Tailwind
+- Clerk (authentication)
 - React Hook Form
 - Prisma
 - tRPC

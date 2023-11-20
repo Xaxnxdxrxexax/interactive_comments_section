@@ -5,7 +5,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import LoadingSpinner from "./utils/LoadingSpinner";
 import toast from "react-hot-toast";
 import { api } from "~/trpc/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import dayjs from "dayjs";
 import clsx from "clsx";
@@ -33,10 +33,15 @@ export function CreatePost({
   replyingToProp?: string;
   setIsReplyingOpen?: (value: boolean) => void;
 }) {
-  const { register, handleSubmit, resetField } = useForm<{ content: string }>();
+  const { register, handleSubmit, resetField, setFocus } = useForm<{
+    content: string;
+  }>();
   const { isSignedIn } = useUser();
   const ctx = api.useUtils();
 
+  useEffect(() => {
+    setFocus("content");
+  }, [setFocus]);
   {
     /* Create post logic */
   }
@@ -47,20 +52,6 @@ export function CreatePost({
         resetField("content");
         void ctx.post.getAll.invalidate();
         toast.success("Post created");
-      },
-      onError: (e) => {
-        const errorMessage = e.data?.zodError?.fieldErrors.content;
-        if (errorMessage?.[0]) {
-          toast.error(errorMessage[0]);
-        }
-      },
-    });
-
-  const { mutate: createReply, isLoading: isReplying } =
-    api.reply.createReply.useMutation({
-      onSuccess: () => {
-        resetField("content");
-        void ctx.post.getAll.invalidate();
         if (setIsReplyingOpen) setIsReplyingOpen(false);
       },
       onError: (e) => {
@@ -78,7 +69,7 @@ export function CreatePost({
   }> = (data) => {
     if (!isSignedIn) return toast.error("Please sign in to post");
     if (replyingToProp && postIdProp) {
-      createReply({
+      createPost({
         content: data.content,
         postId: postIdProp,
         replyingTo: replyingToProp,
@@ -103,8 +94,13 @@ export function CreatePost({
         )}
       </div>
       <textarea
-        className="order-1 mb-3 w-full flex-grow resize-none rounded-lg border border-Fm-Light-gray p-2 md:order-2 md:mx-3 md:mb-0"
+        className={clsx(
+          "order-1 mb-3 w-full flex-grow resize-none rounded-lg border border-Fm-Light-gray p-2 md:order-2 md:mx-3 md:mb-0",
+          isPosting ? "cursor-wait" : "",
+          !isSignedIn ? "cursor-not-allowed" : "",
+        )}
         placeholder="Add a comment ..."
+        disabled={isPosting || !isSignedIn}
         {...register("content", {
           required: true,
         })}
@@ -117,10 +113,10 @@ export function CreatePost({
           !isSignedIn
             ? "cursor-not-allowed bg-Fm-Grayish-Blue line-through"
             : "bg-Fm-Moderate-blue",
-          isPosting || isReplying ? "cursor-wait" : "",
+          isPosting ? "cursor-wait" : "",
         )}
       >
-        {isPosting || isReplying ? (
+        {isPosting ? (
           <div className="aspect-square w-5 cursor-wait">
             <LoadingSpinner />
           </div>
@@ -233,7 +229,7 @@ export function ReadPost({ post }: { post: PostProps }) {
           >
             <button
               className={clsx(
-                hasTheUserVoted ? "cursor-not-allowed" : "",
+                hasTheUserVoted || !isSignedIn ? "cursor-not-allowed" : "",
                 isVoting ? "cursor-wait" : "",
               )}
               onClick={() => handleVote(post.id, "1")}
@@ -244,7 +240,7 @@ export function ReadPost({ post }: { post: PostProps }) {
             <p className="place-self-center font-semibold ">{post.score}</p>
             <button
               className={clsx(
-                hasTheUserVoted ? "cursor-not-allowed" : "",
+                hasTheUserVoted || !isSignedIn ? "cursor-not-allowed" : "",
                 isVoting ? "cursor-wait" : "",
               )}
               onClick={() => handleVote(post.id, "-1")}

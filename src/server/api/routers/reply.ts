@@ -5,34 +5,6 @@ import { z } from "zod";
 import { createTRPCRouter, privateProcedure } from "~/server/api/trpc";
 
 export const replyRouter = createTRPCRouter({
-  createReply: privateProcedure
-    .input(
-      z.object({
-        postId: z.string(),
-        replyingTo: z.string(),
-        content: z
-          .string({ invalid_type_error: "Content is required" })
-          .min(5, { message: "Content is too short" })
-          .max(300, { message: "Content is too long" }),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      const user = await currentUser();
-      if (!ctx.auth.userId && !user)
-        throw new TRPCError({ code: "UNAUTHORIZED" });
-      const username = user?.username;
-      const image = user?.imageUrl;
-      const reply = await ctx.db.reply.create({
-        data: {
-          content: input.content,
-          postId: input.postId,
-          replyingTo: input.replyingTo,
-          username: username!,
-          image: image!,
-        },
-      });
-      return reply;
-    }),
   voteReply: privateProcedure
     .input(
       z.object({

@@ -32,6 +32,8 @@ export const postRouter = createTRPCRouter({
           .string()
           .min(5, { message: "Content is too short" })
           .max(300, { message: "Content is too long" }),
+        postId: z.string().optional(),
+        replyingTo: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -40,14 +42,24 @@ export const postRouter = createTRPCRouter({
         throw new TRPCError({ code: "UNAUTHORIZED", message: "Unauthorized" });
       const username = user?.username;
       const image = user?.imageUrl;
-      const post = await ctx.db.post.create({
-        data: {
-          content: input.content,
-          image: image!,
-          username: username!,
-        },
-      });
-      return post;
+      const postOrReply = !input.replyingTo
+        ? await ctx.db.post.create({
+            data: {
+              content: input.content,
+              image: image!,
+              username: username!,
+            },
+          })
+        : await ctx.db.reply.create({
+            data: {
+              content: input.content,
+              postId: input.postId!,
+              replyingTo: input.replyingTo,
+              username: username!,
+              image: image!,
+            },
+          });
+      return postOrReply;
     }),
   votePost: privateProcedure
     .input(

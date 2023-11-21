@@ -322,7 +322,7 @@ export function ReadPost({ post }: { post: PostProps }) {
                     : "cursor-not-allowed text-Fm-Grayish-Blue line-through",
                 )}
               >
-                Reply
+                {isReplyOpen ? "Close" : "Reply"}
               </span>
             </button>
           )}
